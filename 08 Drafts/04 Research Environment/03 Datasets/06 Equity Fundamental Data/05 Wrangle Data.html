@@ -1,7 +1,7 @@
 <p class="python">You need some <a href="/docs/v2/research-environment/datasets/equity-fundamental-data#04-Get-Historical-Data">historical data</a> to perform wrangling operations. To display <code>pandas</code> objects, run a cell in a notebook with the <code>pandas</code> object as the last line. To display other data formats, call the <code>print</code> method.</p>
 <p class="csharp">You need some <a href="/docs/v2/research-environment/datasets/equity-fundamental-data#04-Get-Historical-Data">historical data</a> to perform wrangling operations. Use LINQ to wrangle the data and then call the <code>Console.WriteLine</code> method in a Jupyter Notebook to display the data.</p>
 
-<h4 class='python'>DataFrame Objects</h4>
+<h4>DataFrame Objects</h4>
 <p class="python">The <code>History</code> method returns a multi-index DataFrame where the first level is the Equity <code>Symbol</code> and the second level is the <code>EndTime</code> of the trading day. The columns of the DataFrame are the names of the fundamental properties. The following image shows the first 4 columns of an example DataFrame:</p>
 <img class="python docs-image" src="https://cdn.quantconnect.com/i/tu/history-fundamental-dataframe-python.png" alt="Historical fundamental properties dataframe for US Equities">
 
@@ -12,6 +12,118 @@
     <pre class="python">history[symbols[1]]</pre>
 </div>
 <img class="python docs-image" src="https://cdn.quantconnect.com/i/tu/getfundamental-dataframe-slice-python.png" alt="Historical PE ratio of a single symbol">
+
+<p class="csharp">The <code>History</code> methods don't return DataFrame objects, but a collection of <a href="#datadictionary">DataDictionary</a> objects, where properties of <code>Fundamental</code> objects can be accessed. You can then create a DataFrame for efficient vectorized data wrangling.</p>
+<div class="csharpsection-example-container">
+    <pre class="csharp">var history = qb.History&lt;Fundamental&gt;(new[] {spy}, 300);
+
+var columns = new DataFrameColumn[] {
+    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[spy].EndTime)),
+    new SingleDataFrameColumn("AdjustedPrice", history.Select(x =&gt; (float)x[spy].AdjustedPrice)),
+    new SingleDataFrameColumn("DollarVolume", history.Select(x =&gt; (float)x[spy].DollarVolume)),
+    new SingleDataFrameColumn("MarketCap", history.Select(x =&gt; (float)x[spy].MarketCap)),
+    new SingleDataFrameColumn("PERatio", history.Select(x =&gt; (float)x[spy].ValuationRatios.PERatio)),
+    new SingleDataFrameColumn("SectorCode", history.Select(x =&gt; (float)x[spy].AssetClassification.MorningstarSectorCode)),
+    new SingleDataFrameColumn("EBITDA", history.Select(
+        x =&gt; (float)x[spy].FinancialStatements.IncomeStatement.EBITDA.ThreeMonths)),
+    new SingleDataFrameColumn("Cash", history.Select(
+        x =&gt; (float)x[spy].FinancialStatements.BalanceSheet.Cash.ThreeMonths))
+};
+var df = new DataFrame(columns);
+df</pre>
+</div>
+
+<p class="csharp">It is also possible to construct composite factors from <code>Fundamental</code> objects as a column of the DataFrame. In this example, we demostrate the creation of a Piotroski F-Score column.</p>
+<div class="csharpsection-example-container">
+    <pre class="csharp">public double FScore(Fundamental fundamental)
+{
+    Func&lt;Fundamental, double&gt; GetROAScore = (fundamental) =&gt; {
+        var roa = fundamental.OperationRatios.ROA.ThreeMonths;
+        return roa != 0 && roa &gt; 0d ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetOperatingCashFlowScore = (fundamental) =&gt; {
+        var operatingCashflow = fundamental.FinancialStatements.CashFlowStatement.CashFlowFromContinuingOperatingActivities.ThreeMonths;
+        return operatingCashflow != 0 && operatingCashflow &gt; 0d ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetROAChangeScore = (fundamental) =&gt; {
+        var roa = fundamental.OperationRatios.ROA;
+        if (roa.ThreeMonths == 0 || roa.OneYear == 0) 
+        {
+            return 0d;
+        }
+        return roa.ThreeMonths &gt; roa.OneYear ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetAccrualsScore = (fundamental) =&gt; {
+        var operatingCashflow = fundamental.FinancialStatements.CashFlowStatement.CashFlowFromContinuingOperatingActivities.ThreeMonths;
+        var totalAssets = fundamental.FinancialStatements.BalanceSheet.TotalAssets.ThreeMonths;
+        var roa = fundamental.OperationRatios.ROA.ThreeMonths;
+        return operatingCashflow != 0 && totalAssets != 0 && roa != 0 && operatingCashflow / totalAssets &gt; roa ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetLeverageScore = (fundamental) =&gt; {
+        var longTermDebtRatio = fundamental.OperationRatios.LongTermDebtEquityRatio;
+        if (longTermDebtRatio.ThreeMonths == 0 || longTermDebtRatio.OneYear == 0)
+        {
+            return 0d;
+        }
+        return longTermDebtRatio.ThreeMonths &lt; longTermDebtRatio.OneYear ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetLiquidityScore = (fundamental) =&gt; {
+        var currentRatio = fundamental.OperationRatios.CurrentRatio;
+        if (currentRatio.ThreeMonths == 0 || currentRatio.OneYear == 0)
+        {
+            return 0d;
+        }
+        return currentRatio.ThreeMonths &gt; currentRatio.OneYear ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetShareIssuedScore = (fundamental) =&gt; {
+        var sharesIssued = fundamental.FinancialStatements.BalanceSheet.ShareIssued;
+        if (sharesIssued.ThreeMonths == 0 || sharesIssued.TwelveMonths == 0)
+        {
+            return 0d;
+        }
+        return sharesIssued.ThreeMonths &lt;= sharesIssued.TwelveMonths ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetGrossMarginScore = (fundamental) =&gt; {
+        var grossMargin = fundamental.OperationRatios.GrossMargin;
+        if (grossMargin.ThreeMonths == 0 || grossMargin.OneYear == 0)
+        {
+            return 0d;
+        }
+        return grossMargin.ThreeMonths &gt; grossMargin.OneYear ? 1d : 0d;
+    };
+    Func&lt;Fundamental, double&gt; GetAssetTurnoverScore = (fundamental) =&gt; {
+        var assetsTurnover = fundamental.OperationRatios.AssetsTurnover;
+        if (assetsTurnover.ThreeMonths == 0 || assetsTurnover.OneYear == 0)
+        {
+            return 0d;
+        }
+        return assetsTurnover.ThreeMonths &gt; assetsTurnover.OneYear ? 1d : 0d;
+    };
+    return GetROAScore(fundamental) +
+           GetOperatingCashFlowScore(fundamental) +
+           GetROAChangeScore(fundamental) +
+           GetAccrualsScore(fundamental) +
+           GetLeverageScore(fundamental) +
+           GetLiquidityScore(fundamental) +
+           GetShareIssuedScore(fundamental) +
+           GetGrossMarginScore(fundamental) +
+           GetAssetTurnoverScore(fundamental);
+}
+
+var columns = new DataFrameColumn[] {
+    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[spy].EndTime)),
+    new SingleDataFrameColumn("FScore", history.Select(x =&gt; (float)FScore(x[spy])))
+};
+var df = new DataFrame(columns);
+df</pre>
+</div>
+<img class="csharp docs-image" src="https://cdn.quantconnect.com/i/tu/history-fundamental-dataframe-csharp.png" alt="Historical fundamental properties dataframe for US Equities">
+
+<p class="csharp">To select a particular column of the DataFrame, index it with the column name.</p>
+<div class="csharp section-example-container">
+    <pre class="csharp">df["AdjustedPrice"]</pre>
+</div>
+<img class="csharp docs-image" src="https://cdn.quantconnect.com/i/tu/history-fundamental-dataframe-column-csharp.png" alt="A column of historical fundamental properties dataframe for US Equities">
 
 <h4>Fundamental Objects</h4>
 <p>If you pass a <code>Symbol</code> to the <code class='python'>History[Fundamental]</code><code class='csharp'>History&lt;Fundamental&gt;</code> method, run the following code to get the fundamental properties over time:</p>
@@ -72,7 +184,7 @@
 }</pre>
 </div>
 
-<h4 class='csharp'>DataDictionary Objects</h4>
+<h4 class='csharp' id="datadictionary">DataDictionary Objects</h4>
 <p class='csharp'>To get the fundamental data points for each Equity, iterate through the history request result.</p>
 <div class="csharp section-example-container">
     <pre class="csharp">foreach (var slice in allOneAttributeHistory)
