@@ -15,19 +15,19 @@
 
 <p class="csharp">The <code>History</code> methods don't return DataFrame objects, but a collection of <a href="#datadictionary">DataDictionary</a> objects, where properties of <code>Fundamental</code> objects can be accessed. You can then create a DataFrame for efficient vectorized data wrangling.</p>
 <div class="csharpsection-example-container">
-    <pre class="csharp">var history = qb.History&lt;Fundamental&gt;(new[] {spy}, 300);
+    <pre class="csharp">var history = qb.History&lt;Fundamental&gt;(new[] {symbols[1]}, 300);
 
 var columns = new DataFrameColumn[] {
-    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[spy].EndTime)),
-    new SingleDataFrameColumn("AdjustedPrice", history.Select(x =&gt; (float)x[spy].AdjustedPrice)),
-    new SingleDataFrameColumn("DollarVolume", history.Select(x =&gt; (float)x[spy].DollarVolume)),
-    new SingleDataFrameColumn("MarketCap", history.Select(x =&gt; (float)x[spy].MarketCap)),
-    new SingleDataFrameColumn("PERatio", history.Select(x =&gt; (float)x[spy].ValuationRatios.PERatio)),
-    new SingleDataFrameColumn("SectorCode", history.Select(x =&gt; (float)x[spy].AssetClassification.MorningstarSectorCode)),
+    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[symbols[1]].EndTime)),
+    new SingleDataFrameColumn("AdjustedPrice", history.Select(x =&gt; (float)x[symbols[1]].AdjustedPrice)),
+    new SingleDataFrameColumn("DollarVolume", history.Select(x =&gt; (float)x[symbols[1]].DollarVolume)),
+    new SingleDataFrameColumn("MarketCap", history.Select(x =&gt; (float)x[symbols[1]].MarketCap)),
+    new SingleDataFrameColumn("PERatio", history.Select(x =&gt; (float)x[symbols[1]].ValuationRatios.PERatio)),
+    new SingleDataFrameColumn("SectorCode", history.Select(x =&gt; (float)x[symbols[1]].AssetClassification.MorningstarSectorCode)),
     new SingleDataFrameColumn("EBITDA", history.Select(
-        x =&gt; (float)x[spy].FinancialStatements.IncomeStatement.EBITDA.ThreeMonths)),
+        x =&gt; (float)x[symbols[1]].FinancialStatements.IncomeStatement.EBITDA.ThreeMonths)),
     new SingleDataFrameColumn("Cash", history.Select(
-        x =&gt; (float)x[spy].FinancialStatements.BalanceSheet.Cash.ThreeMonths))
+        x =&gt; (float)x[symbols[1]].FinancialStatements.BalanceSheet.Cash.ThreeMonths))
 };
 var df = new DataFrame(columns);
 df</pre>
@@ -111,8 +111,8 @@ df</pre>
 }
 
 var columns = new DataFrameColumn[] {
-    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[spy].EndTime)),
-    new SingleDataFrameColumn("FScore", history.Select(x =&gt; (float)FScore(x[spy])))
+    new PrimitiveDataFrameColumn&lt;DateTime&gt;("Time", history.Select(x =&gt; x[symbols[1]].EndTime)),
+    new SingleDataFrameColumn("FScore", history.Select(x =&gt; (float)FScore(x[symbols[1]])))
 };
 var df = new DataFrame(columns);
 df</pre>
