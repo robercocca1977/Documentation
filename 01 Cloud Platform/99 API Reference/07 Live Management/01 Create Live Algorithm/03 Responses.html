@@ -11,19 +11,7 @@ The <code>/live/create</code> API provides a response in the following format:
 </tr>
 </thead>
 <tr>
-<td width="20%">responseCode</td> <td> <code>string<br/><i><sub>example: 200 OK</sub></i></code> <br/> HTTP status response code.</td>
-</tr>
-<tr>
-<td width="20%">versionId</td> <td> <code>string<br/><i><sub>example: 15753</sub></i></code> <br/> The version of the Lean used to run the algorithm.</td>
-</tr>
-<tr>
-<td width="20%">projectId</td> <td> <code>integer</code> <br/> Project Id.</td>
-</tr>
-<tr>
-<td width="20%">deployId</td> <td> <code>string</code> <br/> Deployment Id.</td>
-</tr>
-<tr>
-<td width="20%">source</td> <td> <code>string<br/><i><sub>example: api-v2</sub></i></code> <br/> Id of the node that will run the algorithm.</td>
+<td width="20%">live</td> <td> <code>object</code> <br/> Live response object.</td>
 </tr>
 <tr>
 <td width="20%">success</td> <td> <code>boolean</code> <br/> Indicate if the API request was successful.</td>
@@ -36,11 +24,7 @@ The <code>/live/create</code> API provides a response in the following format:
 <td>
 <div class="cli section-example-container"><pre>
 {
-  "responseCode": "200 OK",
-  "versionId": "15753",
-  "projectId": 0,
-  "deployId": "string",
-  "source": "api-v2",
+  "live": ,
   "success": true,
   "errors": [
     "string"
